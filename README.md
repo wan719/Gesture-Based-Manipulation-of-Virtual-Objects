@@ -1,5 +1,4 @@
 # Gesture-Based-Manipulation-of-Virtual-Objects
-基于手势识别的虚拟狗操纵系统
 # HandPilot：基于手势识别的虚拟机械狗交互控制系统
 
 ## 项目简介
