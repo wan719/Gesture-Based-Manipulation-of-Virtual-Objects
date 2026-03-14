@@ -7,8 +7,8 @@
 | 项目名称 | HandPilot：基于手势识别的虚拟机械狗交互控制系统 |
 | 仓库地址 | [https://github.com/wan719/Gesture-Based-Manipulation](https://github.com/wan719/Gesture-Based-Manipulation-of-Virtual-Objects) |
 | 技术栈 | Python + MediaPipe + OpenCV / Unity C# + UDP |
-| 团队成员 | 组长：@wan719，组员B、C、D、E |
-| 项目周期 | 8周（2026年3月 - 5月） |
+| 团队成员 | 组长：@wan719，组员：张思哲、秦爽一、梁博、谯金昕 |
+| 项目周期 | 9周（2026年3月 - 5月） |
 
 ---
 
