@@ -205,3 +205,44 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+# === 自定义规则开始 ===
+
+# Visual Studio Code（保留配置，忽略临时文件）
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+.history/
+
+# 项目特定文件
+*.log
+hand_demo_debug.log
+temp_*/
+test_output/
+debug_output/
+
+# 操作系统文件
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+
+# 编辑器（如果将来使用）
+.idea/  # PyCharm
+*.swp   # Vim临时文件
+*.swo   # Vim临时文件
+*~      # 各种编辑器的备份文件
+
+# === 自定义规则结束 ===
