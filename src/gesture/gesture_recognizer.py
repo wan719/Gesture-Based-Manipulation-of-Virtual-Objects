@@ -1,16 +1,16 @@
 """
-gesture_recognizer.py - 完整的手势识别系统
-功能：整合手部检测、特征提取、规则分类，实时识别手势
+gesture_recognizer.py - 完整的手势识别系统（带UDP通信）
 """
 
 import cv2
 import mediapipe as mp
 from feature_extractor import FeatureExtractor
 from gesture_classifier import GestureClassifier
+from udp_sender import UDPSender  # 新增
 
 class GestureRecognizer:
-    def __init__(self, debug=False):
-        # 初始化MediaPipe
+    def __init__(self, debug=False, enable_udp=True):
+        # 原有初始化代码...
         self.mp_hands = mp.solutions.hands
         self.hands = self.mp_hands.Hands(
             static_image_mode=False,
@@ -25,24 +25,24 @@ class GestureRecognizer:
         self.classifier = GestureClassifier()
         self.classifier.debug = debug
         
+        # UDP通信（新增）
+        self.enable_udp = enable_udp
+        if enable_udp:
+            self.udp_sender = UDPSender(ip="127.0.0.1", port=8888)
+        
         # 调试模式
         self.debug = debug
         
         # 指尖ID（用于画图）
         self.fingertip_ids = [4, 8, 12, 16, 20]
+        
+        # 保存上一帧的手势，避免重复发送（可选）
+        self.last_gestures = [None, None]
     
     def process_frame(self, frame):
-        """
-        处理单帧图像
-        Returns: 标注后的图像，识别到的手势列表
-        """
-        # 水平翻转
+        """处理单帧图像（修改了手势显示部分）"""
         frame = cv2.flip(frame, 1)
-        
-        # 转换为RGB
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        
-        # 手部检测
         results = self.hands.process(frame_rgb)
         
         detected_gestures = []
@@ -68,21 +68,49 @@ class GestureRecognizer:
                 
                 # 识别手势
                 gesture = self.classifier.classify(features)
-                detected_gestures.append(gesture)
+                gesture_id = self.classifier.get_gesture_id(gesture)
+                detected_gestures.append((gesture, gesture_id))
+                
+                # ===== 新增：通过UDP发送手势 =====
+                if self.enable_udp:
+                    self.udp_sender.send_gesture(hand_idx, gesture_id, gesture)
+                # ================================
                 
                 # 在画面上显示手势
+                # 给不同手势不同颜色
+                color_map = {
+                    "FIST": (0, 0, 255),        # 红色
+                    "OPEN_PALM": (0, 255, 0),    # 绿色
+                    "POINT_INDEX": (255, 0, 0),  # 蓝色
+                    "VICTORY": (255, 255, 0),    # 青色
+                    "THUMBS_UP": (255, 0, 255),  # 紫色
+                    "UNKNOWN": (128, 128, 128)   # 灰色
+                }
+                color = color_map.get(gesture, (255, 255, 255))
+                
+                # 显示手势名称
                 cv2.putText(frame, f"Hand {hand_idx+1}: {gesture}", 
-                           (10, 60 + hand_idx*30), 
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                           (10, 60 + hand_idx*40), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
+                
+                # 显示手势ID（方便Unity调试）
+                cv2.putText(frame, f"ID: {gesture_id}", 
+                           (10, 90 + hand_idx*40),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
                 
                 # 如果处于调试模式，显示手指状态
                 if self.debug:
                     fingers = features['fingers_extended']
                     cv2.putText(frame, f"Fingers: {fingers}", 
-                               (10, 120 + hand_idx*30),
+                               (10, 120 + hand_idx*40),
                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
         
-        # 显示帧率
+        # 显示UDP状态
+        if self.enable_udp:
+            cv2.putText(frame, f"UDP: Sending to 127.0.0.1:8888", 
+                       (10, frame.shape[0] - 40),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1)
+        
         cv2.putText(frame, "Press 'q' to quit", (10, frame.shape[0]-10),
                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1)
         
@@ -98,6 +126,8 @@ class GestureRecognizer:
         print("="*50)
         print("手势识别系统启动")
         print("支持的手势：握拳、手掌、食指、剪刀手、点赞")
+        if self.enable_udp:
+            print(f"UDP通信已开启，正在向 127.0.0.1:8888 发送数据")
         print("按 'q' 退出")
         print("按 'd' 切换调试模式")
         print("="*50)
@@ -122,9 +152,13 @@ class GestureRecognizer:
                 self.classifier.debug = self.debug
                 print(f"调试模式: {'开启' if self.debug else '关闭'}")
         
+        # 清理
         cap.release()
         cv2.destroyAllWindows()
+        if self.enable_udp:
+            self.udp_sender.close()
 
 if __name__ == "__main__":
-    recognizer = GestureRecognizer(debug=True)
+    # 开启UDP通信
+    recognizer = GestureRecognizer(debug=True, enable_udp=True)
     recognizer.run()
