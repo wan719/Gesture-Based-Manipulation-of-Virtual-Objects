@@ -1,4 +1,4 @@
-import SectionTitle from "./SectionTitle";
+﻿import SectionTitle from "./SectionTitle";
 
 function MappingTable({ mappings }) {
   const actionTextMap = {

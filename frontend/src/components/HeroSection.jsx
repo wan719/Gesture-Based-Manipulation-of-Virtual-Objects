@@ -1,4 +1,4 @@
-import { techTags } from "../data/projectData";
+﻿import { techTags } from "../data/projectData";
 
 function HeroSection() {
   return (

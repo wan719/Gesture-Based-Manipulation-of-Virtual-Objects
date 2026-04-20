@@ -1,4 +1,4 @@
-import SectionTitle from "./SectionTitle";
+﻿import SectionTitle from "./SectionTitle";
 import { pipelineSteps } from "../data/projectData";
 
 function PipelineSection() {

@@ -1,4 +1,4 @@
-import SectionTitle from "./SectionTitle";
+﻿import SectionTitle from "./SectionTitle";
 
 function DemoControlPanel({ buttons, selectedAction, onSelect }) {
   return (

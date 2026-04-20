@@ -1,13 +1,10 @@
-import SectionTitle from "./SectionTitle";
+﻿import SectionTitle from "./SectionTitle";
 
 function StatusCards({ currentState }) {
   const cards = [
     { label: "当前手势", value: currentState.gesture },
     { label: "手势 ID", value: currentState.gestureId },
-    {
-      label: "机械狗动作",
-      value: currentState.action?.toUpperCase?.() ?? "NONE",
-    },
+    { label: "机械狗动作", value: currentState.action?.toUpperCase?.() ?? "NONE" },
     { label: "UDP 状态", value: currentState.udpStatus },
     { label: "最后更新时间", value: currentState.timestamp ?? "--:--:--" },
     { label: "数据来源", value: currentState.source ?? "unknown" },

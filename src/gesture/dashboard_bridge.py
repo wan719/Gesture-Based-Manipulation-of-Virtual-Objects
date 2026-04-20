@@ -35,6 +35,11 @@ gesture_to_action = {
 clients = set()
 
 
+@app.get("/")
+async def health():
+    return {"ok": True, "message": "Dashboard bridge is running"}
+
+
 @app.get("/api/status")
 async def get_status():
     return latest_state
@@ -86,4 +91,4 @@ async def websocket_status(websocket: WebSocket):
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run(app, host="127.0.0.1", port=8000, reload=False)

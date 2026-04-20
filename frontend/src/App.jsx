@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import DemoControlPanel from "./components/DemoControlPanel";
 import Footer from "./components/Footer";
 import HeroSection from "./components/HeroSection";
 import HighlightsSection from "./components/HighlightsSection";
 import MappingTable from "./components/MappingTable";
 import PipelineSection from "./components/PipelineSection";
+import SidebarNav from "./components/SidebarNav";
 import StatusCards from "./components/StatusCards";
 import { actionButtons, gestureMappings } from "./data/projectData";
 import useLiveStatus from "./hooks/useLiveStatus";
@@ -37,51 +38,85 @@ function App() {
       <div className="background-glow bg-glow-top" />
       <div className="background-glow bg-glow-bottom" />
 
-      <main className="main-layout">
-        <HeroSection />
-        <PipelineSection />
+      <div className="main-layout">
+        <SidebarNav
+          useLiveMode={useLiveMode}
+          connected={connected}
+          currentState={currentState}
+        />
 
-        <section className="panel">
-          <div className="section-head">
-            <h2>系统模式</h2>
-            <p>可在实时 Python 数据和本地前端演示模式之间切换。</p>
-          </div>
+        <main className="content-layout">
+          <section id="hero">
+            <HeroSection />
+          </section>
 
-          <div className="button-row mode-switch-row">
-            <button
-              className={`demo-button${useLiveMode ? " active" : ""}`}
-              onClick={() => setUseLiveMode(true)}
-              type="button"
-            >
-              实时模式（Live Mode）
-            </button>
-            <button
-              className={`demo-button${!useLiveMode ? " active" : ""}`}
-              onClick={() => setUseLiveMode(false)}
-              type="button"
-            >
-              演示模式（Demo Mode）
-            </button>
-          </div>
+          <section id="pipeline">
+            <PipelineSection />
+          </section>
 
-          <div className="mode-status">
-            <strong>连接状态：</strong>
-            {connected ? "WebSocket 已连接" : "等待 Python Bridge 服务"}
-          </div>
-        </section>
+          <section id="mode" className="panel">
+            <div className="section-head">
+              <h2>系统模式</h2>
+              <p>可在实时 Python 数据和本地前端演示模式之间切换。</p>
+            </div>
 
-        <StatusCards currentState={currentState} />
-        <MappingTable mappings={gestureMappings} />
-        <HighlightsSection />
+            <div className="button-row mode-switch-row">
+              <button
+                className={`demo-button${useLiveMode ? " active" : ""}`}
+                onClick={() => setUseLiveMode(true)}
+                type="button"
+              >
+                实时模式（Live Mode）
+              </button>
+              <button
+                className={`demo-button${!useLiveMode ? " active" : ""}`}
+                onClick={() => setUseLiveMode(false)}
+                type="button"
+              >
+                演示模式（Demo Mode）
+              </button>
+            </div>
 
-        {!useLiveMode && (
-          <DemoControlPanel
-            buttons={actionButtons}
-            selectedAction={selectedAction}
-            onSelect={setSelectedAction}
-          />
-        )}
-      </main>
+            <div className="mode-status">
+              <strong>连接状态：</strong>
+              {connected ? "WebSocket 已连接" : "等待 Python Bridge 服务"}
+            </div>
+            <div className="mode-status">
+              <strong>实时事件：</strong>
+              {`${currentState.gesture} -> ${currentState.action}`}
+            </div>
+          </section>
+
+          <section id="status">
+            <StatusCards currentState={currentState} />
+          </section>
+
+          <section id="mapping">
+            <MappingTable mappings={gestureMappings} />
+          </section>
+
+          <section id="highlights">
+            <HighlightsSection />
+          </section>
+
+          <section id="controls">
+            {!useLiveMode ? (
+              <DemoControlPanel
+                buttons={actionButtons}
+                selectedAction={selectedAction}
+                onSelect={setSelectedAction}
+              />
+            ) : (
+              <section className="panel">
+                <div className="section-head">
+                  <h2>演示控制</h2>
+                  <p>当前为实时模式，按钮演示区已隐藏。切换到 Demo Mode 可手动触发动作展示。</p>
+                </div>
+              </section>
+            )}
+          </section>
+        </main>
+      </div>
 
       <Footer />
     </div>

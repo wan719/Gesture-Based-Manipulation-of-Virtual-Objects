@@ -1,4 +1,4 @@
-function Footer() {
+﻿function Footer() {
   return (
     <footer className="footer">
       <p>项目用途：课程项目 / 演示项目</p>
