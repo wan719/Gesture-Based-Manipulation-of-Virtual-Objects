@@ -1,10 +1,33 @@
 import cv2
 import mediapipe as mp
+import requests
 import time
 
 from feature_extractor import FeatureExtractor
 from gesture_classifier import GestureClassifier
 from udp_sender import UDPSender
+
+
+DASHBOARD_UPDATE_URL = "http://127.0.0.1:8000/api/update"
+
+
+def push_status_to_dashboard(gesture_name, gesture_id, action_name):
+    """
+    将当前识别结果推送到前端桥接服务。
+    推送失败时静默处理，避免影响主识别和UDP发送链路。
+    """
+    try:
+        requests.post(
+            DASHBOARD_UPDATE_URL,
+            json={
+                "gesture": gesture_name,
+                "gestureId": gesture_id,
+                "action": action_name,
+            },
+            timeout=0.2,
+        )
+    except Exception:
+        pass
 
 
 class GestureRecognizer:
@@ -171,6 +194,7 @@ class GestureRecognizer:
                 if self.enable_udp and gesture != self.classifier.UNKNOWN:
                     if self.should_send_gesture(hand_idx, gesture):
                         self.udp_sender.send_gesture(hand_idx, gesture_id, gesture)
+                        push_status_to_dashboard(gesture, gesture_id, action_name)
                         self.last_sent_label = gesture
                         self.last_sent_id = gesture_id
                         self.last_sent_action = action_name
