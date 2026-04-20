@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 手势识别 + UDP 发送端
-识别常见手势并通过UDP发送到指定地址
+使用 MediaPipe Hands + 改进的手势分类算法
 """
 
 import cv2
@@ -9,236 +9,184 @@ import mediapipe as mp
 import socket
 import json
 import time
-import sys
 import numpy as np
+from PIL import Image, ImageDraw, ImageFont
 
 # ============ 配置 ============
-UDP_HOST = '127.0.0.1'      # UDP目标地址
-UDP_PORT = 8888              # UDP目标端口
-DEBUG_MODE = True            # 调试模式：显示更多信息
+UDP_HOST = '127.0.0.1'
+UDP_PORT = 8888
+DEBUG_MODE = True
 
-# MediaPipe 关键点索引
-# 0: 手腕
-# 4: 拇指指尖, 3: 拇指远端关节, 2: 拇指中关节, 1: 拇指基关节
-# 8: 食指指尖, 7: 食指远端关节, 6: 食指中关节, 5: 食指基关节
-# 12: 中指指尖, 11: 中指远端关节, 10: 中指中关节, 9: 中指基关节
-# 16: 无名指指尖, 15: 无名指远端关节, 14: 无名指中关节, 13: 无名指基关节
-# 20: 小指指尖, 19: 小指远端关节, 18: 小指中关节, 17: 小指基关节
-
-THUMB_TIP = 4
-INDEX_TIP = 8
-MIDDLE_TIP = 12
-RING_TIP = 16
-PINKY_TIP = 20
-
-THUMB_IP = 3    # 拇指指间关节
-INDEX_IP = 7    # 食指指间关节
-MIDDLE_IP = 11  # 中指指间关节
-RING_IP = 15    # 无名指指间关节
-PINKY_IP = 19   # 小指指间关节
-
-THUMB_MCP = 1   # 拇指基关节
-INDEX_MCP = 5   # 食指基关节
-MIDDLE_MCP = 9  # 中指基关节
-RING_MCP = 13   # 无名指基关节
-PINKY_MCP = 17  # 小指基关节
-
+# 关键点索引
+THUMB_TIP, THUMB_IP, THUMB_MCP = 4, 3, 1
+INDEX_TIP, INDEX_IP, INDEX_MCP = 8, 7, 5
+MIDDLE_TIP, MIDDLE_IP, MIDDLE_MCP = 12, 11, 9
+RING_TIP, RING_IP, RING_MCP = 16, 15, 13
+PINKY_TIP, PINKY_IP, PINKY_MCP = 20, 19, 17
 WRIST = 0
 
+# 手势名称中英文映射
+GESTURE_NAMES = {
+    "Thumb_Up": "点赞",
+    "Open_Palm": "手掌",
+    "Pointing_Up": "指向",
+    "Victory": "剪刀",
+    "Rock": "石头",
+    "ILoveYou": "我爱你",
+    "Peace": "和平",
+    "Heart": "比心",
+    "Ok": "OK",
+    "Fist": "拳头",
+    "Unknown": "未知"
+}
+
+def draw_chinese_text(img, text, position, color=(0, 255, 0)):
+    """在图像上绘制中文"""
+    img_pil = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+    draw = ImageDraw.Draw(img_pil)
+    
+    # 尝试加载中文字体
+    try:
+        font = ImageFont.truetype("/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc", 50)
+    except:
+        try:
+            font = ImageFont.truetype("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc", 50)
+        except:
+            font = ImageFont.load_default()
+    
+    draw.text(position, text, font=font, fill=color)
+    img[:] = cv2.cvtColor(np.array(img_pil), cv2.COLOR_RGB2BGR)
+
+def get_finger_states(landmarks):
+    """获取各手指状态"""
+    # 指尖和基关节的位置
+    fingers = {
+        'thumb': {'tip': landmarks[THUMB_TIP], 'ip': landmarks[THUMB_IP], 'mcp': landmarks[THUMB_MCP]},
+        'index': {'tip': landmarks[INDEX_TIP], 'ip': landmarks[INDEX_IP], 'mcp': landmarks[INDEX_MCP]},
+        'middle': {'tip': landmarks[MIDDLE_TIP], 'ip': landmarks[MIDDLE_IP], 'mcp': landmarks[MIDDLE_MCP]},
+        'ring': {'tip': landmarks[RING_TIP], 'ip': landmarks[RING_IP], 'mcp': landmarks[RING_MCP]},
+        'pinky': {'tip': landmarks[PINKY_TIP], 'ip': landmarks[PINKY_IP], 'mcp': landmarks[PINKY_MCP]}
+    }
+    
+    states = {}
+    
+    # 拇指：判断是否向侧面伸直
+    thumb_tip = fingers['thumb']['tip']
+    thumb_mcp = fingers['thumb']['mcp']
+    wrist = landmarks[WRIST]
+    
+    # 拇指横向判断（区分左右手）
+    handedness = "Right" if thumb_tip.x < 0.5 else "Left"
+    if handedness == "Right":
+        states['thumb'] = thumb_tip.x > wrist.x + 0.05  # 拇指在手腕右侧
+    else:
+        states['thumb'] = thumb_tip.x < wrist.x - 0.05  # 拇指在手腕左侧
+    
+    # 其他手指：判断是否向上伸直（指尖y < 基关节y）
+    for name in ['index', 'middle', 'ring', 'pinky']:
+        tip = fingers[name]['tip']
+        mcp = fingers[name]['mcp']
+        # 加上ip关节的二次确认
+        ip = fingers[name]['ip']
+        states[name] = tip.y < mcp.y and tip.y < ip.y
+    
+    return states, handedness
+
 def calculate_distance(p1, p2):
-    """计算两点之间的欧氏距离"""
+    """计算两点欧氏距离"""
     return np.sqrt((p1.x - p2.x)**2 + (p1.y - p2.y)**2)
-
-def calculate_angle(p1, p2, p3):
-    """计算三点形成的角度（p2为顶点）"""
-    v1 = np.array([p1.x - p2.x, p1.y - p2.y])
-    v2 = np.array([p3.x - p2.x, p3.y - p2.y])
-    
-    cos_angle = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2) + 1e-6)
-    cos_angle = np.clip(cos_angle, -1, 1)
-    angle = np.arccos(cos_angle)
-    return np.degrees(angle)
-
-def is_finger_extended(landmarks, tip_idx, mcp_idx, ip_idx=None):
-    """判断手指是否伸直"""
-    tip = landmarks[tip_idx]
-    mcp = landmarks[mcp_idx]
-    
-    # 简单判断：指尖y坐标小于（图像上方）基关节y坐标
-    # 注意：图像坐标系y向下增加，所以"向上"伸直意味着y更小
-    if tip.y < mcp.y:
-        # 进一步检查指尖是否在基关节上方一定距离
-        if ip_idx:
-            ip = landmarks[ip_idx]
-            return tip.y < ip.y < mcp.y
-        return True
-    return False
-
-def is_finger_curled(landmarks, tip_idx, mcp_idx):
-    """判断手指是否弯曲（指尖在基关节下方）"""
-    tip = landmarks[tip_idx]
-    mcp = landmarks[mcp_idx]
-    return tip.y > mcp.y
 
 def recognize_gesture(landmarks):
     """
-    识别手势
+    使用改进的算法识别手势
     返回: (手势名称, 置信度)
     """
-    # 提取关键点坐标（便于计算）
+    states, handedness = get_finger_states(landmarks)
+    
+    fingers_extended = [states['index'], states['middle'], states['ring'], states['pinky']]
+    extended_count = sum(fingers_extended)
+    
+    # 提取关键点
     thumb_tip = landmarks[THUMB_TIP]
     index_tip = landmarks[INDEX_TIP]
     middle_tip = landmarks[MIDDLE_TIP]
     ring_tip = landmarks[RING_TIP]
     pinky_tip = landmarks[PINKY_TIP]
-    
-    thumb_ip = landmarks[THUMB_IP]
-    index_ip = landmarks[INDEX_IP]
-    middle_ip = landmarks[MIDDLE_IP]
-    ring_ip = landmarks[RING_IP]
-    pinky_ip = landmarks[PINKY_IP]
-    
-    thumb_mcp = landmarks[THUMB_MCP]
     index_mcp = landmarks[INDEX_MCP]
-    middle_mcp = landmarks[MIDDLE_MCP]
-    ring_mcp = landmarks[RING_MCP]
-    pinky_mcp = landmarks[PINKY_MCP]
-    
     wrist = landmarks[WRIST]
     
-    # 判断各手指状态
-    thumb_extended = thumb_tip.y < thumb_ip.y
-    index_extended = index_tip.y < index_ip.y
-    middle_extended = middle_tip.y < middle_ip.y
-    ring_extended = ring_tip.y < ring_ip.y
-    pinky_extended = pinky_tip.y < pinky_ip.y
+    # 1. 点赞 (Thumb Up) - 拇指伸直，其他手指弯曲
+    if states['thumb'] and not states['index'] and not states['middle']:
+        if not states['ring'] and not states['pinky']:
+            return ("Thumb_Up", 0.95)
     
-    # 计算手指伸展程度（用于更精确判断）
-    index_straight = index_tip.y < index_mcp.y
-    middle_straight = middle_tip.y < middle_mcp.y
-    ring_straight = ring_tip.y < ring_mcp.y
-    pinky_straight = pinky_tip.y < pinky_mcp.y
+    # 2. 拳头 (Fist) - 所有手指弯曲
+    if not any(fingers_extended):
+        return ("Fist", 0.90)
     
-    # === 手势识别逻辑 ===
-    
-    # 1. 拳头 (Fist) - 所有手指弯曲
-    if (not index_straight and not middle_straight and 
-        not ring_straight and not pinky_straight):
-        # 进一步判断拇指是否也弯曲
-        thumb_curled = thumb_tip.y > thumb_mcp.y
-        if thumb_curled:
-            return ("fist", 0.9)
-    
-    # 2. 布/手掌 (Open Hand / Five) - 所有手指伸直
-    if index_straight and middle_straight and ring_straight and pinky_straight:
-        # 检查手指之间有明显间隙
+    # 3. 手掌 (Open Palm) - 所有手指伸直
+    if all(fingers_extended):
+        # 检查手指之间有间隙
         gap1 = calculate_distance(index_tip, middle_tip)
         gap2 = calculate_distance(middle_tip, ring_tip)
         gap3 = calculate_distance(ring_tip, pinky_tip)
         if gap1 > 0.05 and gap2 > 0.05 and gap3 > 0.05:
-            return ("open_hand", 0.85)
+            return ("Open_Palm", 0.90)
     
-    # 3. 石头 (Rock) - 拇指和食指伸直形成L形，其他弯曲
-    if index_straight and not middle_straight and not ring_straight and not pinky_straight:
-        # 拇指伸向侧面
-        if thumb_tip.x < index_mcp.x:  # 左手
-            thumb_side = thumb_tip.x > wrist.x
-        else:  # 右手
-            thumb_side = thumb_tip.x < wrist.x
-        if thumb_side and thumb_extended:
-            return ("rock", 0.8)
+    # 4. 剪刀 (Victory) - 食指和中指伸直，其他弯曲
+    if states['index'] and states['middle'] and not states['ring'] and not states['pinky']:
+        # 检查两根手指有分叉
+        gap = calculate_distance(index_tip, middle_tip)
+        if gap > 0.03:
+            return ("Victory", 0.92)
     
-    # 4. 剪刀 (Scissors) - 食指和中指伸直，无名指和小指弯曲
-    if index_straight and middle_straight and not ring_straight and not pinky_straight:
-        return ("scissors", 0.85)
+    # 5. 指向 (Pointing Up) - 只有食指伸直
+    if states['index'] and not states['middle'] and not states['ring'] and not states['pinky']:
+        # 食指明显比其他手指高
+        if index_tip.y < middle_tip.y - 0.05:
+            return ("Pointing_Up", 0.88)
     
-    # 5. 指向 (Point) - 只有食指伸直
-    if index_straight and not middle_straight and not ring_straight and not pinky_straight:
-        # 拇指可以伸直或弯曲
-        return ("point", 0.8)
+    # 6. 石头 (Rock) - 拇指和食指伸直形成L形
+    if states['thumb'] and states['index'] and not states['middle'] and not states['ring']:
+        if not states['pinky']:
+            return ("Rock", 0.85)
     
-    # 6. 点赞 (Thumbs Up)
-    if thumb_extended and not index_straight and not middle_straight:
-        if not ring_straight and not pinky_straight:
-            return ("thumbs_up", 0.85)
+    # 7. OK手势 - 拇指和食指相碰形成圆圈
+    ok_dist = calculate_distance(thumb_tip, index_tip)
+    if ok_dist < 0.05 and not states['middle'] and not states['ring'] and not states['pinky']:
+        return ("Ok", 0.88)
     
-    # 7. OK手势 - 拇指和食指指尖相碰形成圆圈
-    ok_distance = calculate_distance(thumb_tip, index_tip)
-    if ok_distance < 0.05:  # 距离很近
-        if not middle_straight and not ring_straight and not pinky_straight:
-            return ("ok", 0.8)
+    # 8. 比心 (Heart) - 拇指和食指相碰，其他手指伸直
+    if ok_dist < 0.06 and states['middle'] and states['ring'] and states['pinky']:
+        return ("Heart", 0.82)
     
-    # 8. 比心 - 拇指和食指指尖相碰，中无名小指伸直
-    if ok_distance < 0.06:
-        if middle_straight and ring_straight and pinky_straight:
-            return ("heart", 0.75)
+    # 9. 数字2 (Peace) - 食指和中指伸直（类似剪刀但无名指小指可伸可屈）
+    if states['index'] and states['middle'] and not states['ring'] and not states['pinky']:
+        return ("Peace", 0.85)
     
-    # 9. 数字1 - 只有食指伸直
-    if index_straight and not middle_straight and not ring_straight and not pinky_straight:
-        # 检查其他手指都弯曲
-        if not middle_extended and not ring_extended and not pinky_extended:
-            return ("one", 0.8)
+    # 10. 我爱你 (ILoveYou) - 拇指、小指伸直，食指中指无名指弯曲
+    if states['thumb'] and not states['index'] and not states['middle'] and not states['ring'] and states['pinky']:
+        return ("ILoveYou", 0.80)
     
-    # 10. 数字2 - 食指和中指伸直
-    if index_straight and middle_straight and not ring_straight and not pinky_straight:
-        # 检查两根手指有一定夹角
-        return ("two", 0.8)
-    
-    # 11. 数字3 - 食指、中指、无名指伸直
-    if index_straight and middle_straight and ring_straight and not pinky_straight:
-        return ("three", 0.8)
-    
-    # 12. 数字4 - 食指、无名指、小指伸直（类似四）
-    if index_straight and not middle_straight and ring_straight and pinky_straight:
-        return ("four", 0.75)
-    
-    # 13. 数字5 - 同手掌
-    if index_straight and middle_straight and ring_straight and pinky_straight:
-        if not thumb_extended:  # 拇指不伸直
-            return ("five", 0.7)
-    
-    # 14. 六手势 - 拇指和小指伸直
-    if thumb_extended and not index_extended and not middle_extended and not ring_extended and pinky_extended:
-        return ("six", 0.7)
-    
-    # 15. 八手势 - 拇指和食指伸直
-    if thumb_extended and index_extended and not middle_extended and not ring_extended and not pinky_extended:
-        return ("eight", 0.7)
-    
-    # 16. 七手势 - 拇指、食指、小指伸直
-    if thumb_extended and index_extended and not middle_extended and not ring_extended and pinky_extended:
-        return ("seven", 0.65)
-    
-    return ("unknown", 0.0)
-
-def draw_gesture_text(img, gesture, confidence):
-    """在手势画面上显示识别结果"""
-    text = f"{gesture}: {confidence:.2f}"
-    cv2.putText(img, text, (10, 40), 
-                cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 255, 0), 3)
-    
-    # 显示置信度颜色
-    color = (0, 255, 0) if confidence > 0.7 else (0, 165, 255)
-    cv2.putText(img, text, (10, 40), 
-                cv2.FONT_HERSHEY_SIMPLEX, 1.2, color, 3)
+    return ("Unknown", 0.0)
 
 def main():
     print("="*50)
-    print("手势识别 + UDP 发送端")
+    print("手势识别 + UDP 发送端 (改进算法)")
     print(f"目标: {UDP_HOST}:{UDP_PORT}")
     print("="*50)
     
-    # 初始化MediaPipe
+    # 初始化MediaPipe Hands
     mp_hands = mp.solutions.hands
     hands = mp_hands.Hands(
         static_image_mode=False,
-        max_num_hands=1,  # 简化：只检测一只手
+        max_num_hands=1,
         min_detection_confidence=0.5,
         min_tracking_confidence=0.5
     )
     mp_draw = mp.solutions.drawing_utils
     
-    # 初始化UDP socket
+    # 初始化UDP
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     
     # 打开摄像头
@@ -252,7 +200,7 @@ def main():
     
     frame_count = 0
     last_gesture = "none"
-    gesture_stable_count = 0  # 手势稳定计数
+    gesture_stable_count = 0
     
     while True:
         success, img = cap.read()
@@ -260,48 +208,44 @@ def main():
             continue
         
         frame_count += 1
-        
-        # 镜像翻转（更符合直觉）
         img = cv2.flip(img, 1)
         
-        # 转换为RGB
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         results = hands.process(img_rgb)
         
-        current_gesture = "none"
+        gesture = "Unknown"
         confidence = 0.0
         
         if results.multi_hand_landmarks:
             for hand_landmarks in results.multi_hand_landmarks:
-                # 画骨架
                 mp_draw.draw_landmarks(img, hand_landmarks, mp_hands.HAND_CONNECTIONS)
                 
-                # 识别手势
-                gesture, conf = recognize_gesture(hand_landmarks.landmark)
-                current_gesture = gesture
-                confidence = conf
+                gesture, confidence = recognize_gesture(hand_landmarks.landmark)
                 
-                # 手势稳定检测（连续5帧相同才确认）
-                if gesture == last_gesture and gesture != "unknown":
+                # 稳定检测
+                if gesture == last_gesture and gesture != "Unknown":
                     gesture_stable_count += 1
                 else:
                     gesture_stable_count = 0
-                
                 last_gesture = gesture
                 
-                # 显示结果
-                draw_gesture_text(img, gesture, confidence)
+                # 显示中文
+                if gesture != "Unknown":
+                    chinese_name = GESTURE_NAMES.get(gesture, gesture)
+                    text = f"{chinese_name}: {confidence:.2f}"
+                    color = (0, 255, 0) if confidence > 0.7 else (0, 165, 255)
+                    draw_chinese_text(img, text, (10, 20), color)
                 
-                # 在指尖画红点
+                # 指尖画红点
                 h, w, c = img.shape
                 for id in [4, 8, 12, 16, 20]:
                     lm = hand_landmarks.landmark[id]
                     cx, cy = int(lm.x * w), int(lm.y * h)
-                    cv2.circle(img, (cx, cy), 8, (0, 0, 255), cv2.FILLED)
+                    cv2.circle(img, (cx, cy), 8, (0, 0, 255), -1)
                 
-                # 通过UDP发送数据（每10帧或手势变化时）
+                # UDP发送
                 if frame_count % 10 == 0 or gesture_stable_count == 5:
-                    if gesture != "unknown":
+                    if gesture != "Unknown":
                         data = {
                             "gesture": gesture,
                             "confidence": round(confidence, 2),
@@ -316,8 +260,10 @@ def main():
                         except Exception as e:
                             print(f"UDP发送错误: {e}")
         
-        # 显示画面
-        cv2.imshow("Gesture Recognition + UDP", img)
+        if gesture == "Unknown":
+            draw_chinese_text(img, "未识别", (10, 20), (100, 100, 100))
+        
+        cv2.imshow("Gesture Recognition", img)
         
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break

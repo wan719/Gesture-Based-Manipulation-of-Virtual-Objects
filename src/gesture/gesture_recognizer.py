@@ -222,6 +222,7 @@ class GestureRecognizer:
 
                 if self.debug:
                     fingers = features.get('fingers_extended', [])
+                    z_extends = features.get('z_extends', [])
                     cv2.putText(
                         frame,
                         f"Fingers: {fingers}",
@@ -231,6 +232,16 @@ class GestureRecognizer:
                         (255, 255, 0),
                         1
                     )
+                    if z_extends:
+                        cv2.putText(
+                            frame,
+                            f"Z: {[f'{z:.2f}' for z in z_extends]}",
+                            (10, base_y + 124),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.4,
+                            (0, 255, 255),
+                            1
+                        )
 
         # 顶部状态
         cv2.putText(

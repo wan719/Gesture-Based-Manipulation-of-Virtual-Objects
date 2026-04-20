@@ -13,3 +13,5 @@
 ```bash
 pip install opencv-python mediapipe numpy
 python hand_demo.py
+
+
