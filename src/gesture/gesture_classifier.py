@@ -1,67 +1,121 @@
-"""
-gesture_classifier.py - 手势分类器
-功能：基于特征用规则判断识别5种手势
-"""
-
 class GestureClassifier:
     def __init__(self):
-        # 手势常量
-        self.FIST = "FIST"              # 握拳
-        self.OPEN_PALM = "OPEN_PALM"    # 手掌张开
-        self.POINT_INDEX = "POINT_INDEX" # 食指指向
-        self.VICTORY = "VICTORY"         # 剪刀手
-        self.THUMBS_UP = "THUMBS_UP"     # 点赞
-        self.UNKNOWN = "UNKNOWN"         # 未知
-        
-        # 调试模式
+        self.FIST = "FIST"
+        self.OPEN_PALM = "OPEN_PALM"
+        self.POINT_INDEX = "POINT_INDEX"
+        self.VICTORY = "VICTORY"
+        self.THUMBS_UP = "THUMBS_UP"
+        self.UNKNOWN = "UNKNOWN"
+
         self.debug = False
-    
+
     def classify(self, features):
-        """
-        根据特征识别手势
-        
-        Args:
-            features: feature_extractor返回的特征字典
-            
-        Returns:
-            str: 手势名称
-        """
         fingers = features['fingers_extended']
         palm_span = features['palm_span']
-        
+        index_middle_distance = features.get('tip_distance_1_2', 0.0)
+
+        thumb, index, middle, ring, pinky = fingers
+        extended_count = sum(fingers)
+
+        thumb_dist = features.get('thumb_tip_distance', 0.0)
+        index_dist = features.get('index_tip_distance', 0.0)
+        middle_dist = features.get('middle_tip_distance', 0.0)
+        ring_dist = features.get('ring_tip_distance', 0.0)
+        pinky_dist = features.get('pinky_tip_distance', 0.0)
+
         if self.debug:
-            print(f"手指状态: {fingers}")
-        
-        # 规则1：握拳 - 所有手指都弯曲
-        if fingers == [0, 0, 0, 0, 0]:
-            return self.FIST
-        
-        # 规则2：手掌张开 - 所有手指都伸直
-        elif fingers == [1, 1, 1, 1, 1]:
-            # 再检查一下手掌跨度，确保不是半握拳
-            if palm_span > 0.4:  # 阈值需要根据实际调整
-                return self.OPEN_PALM
-            else:
-                return self.UNKNOWN
-        
-        # 规则3：食指指向 - 只有食指伸直
-        elif fingers == [0, 1, 0, 0, 0]:
-            return self.POINT_INDEX
-        
-        # 规则4：剪刀手 - 食指和中指伸直
-        elif fingers == [0, 1, 1, 0, 0]:
+            print(
+                f"手指状态: {fingers}, "
+                f"palm_span={palm_span:.3f}, "
+                f"index_middle_distance={index_middle_distance:.3f}, "
+                f"dist(index/middle/ring/pinky)=({index_dist:.3f}/{middle_dist:.3f}/{ring_dist:.3f}/{pinky_dist:.3f})"
+            )
+
+        # 1. OPEN_PALM
+        if extended_count >= 4 and palm_span > 0.35:
+            return self.OPEN_PALM
+
+        # 2. FIST
+        # 拳头时各指通常都不突出，手掌跨度较小
+        if extended_count <= 1 and palm_span < 0.30:
+            # 若食指没有明显突出，则判拳头
+            if not (
+                index_dist > middle_dist + 0.20 and
+                index_dist > ring_dist + 0.25 and
+                index_dist > pinky_dist + 0.25
+            ):
+                return self.FIST
+
+        # 3. VICTORY
+        if index == 1 and middle == 1 and ring == 0 and pinky == 0 and index_middle_distance > 0.08:
             return self.VICTORY
-        
-        # 规则5：点赞 - 大拇指伸直，其他弯曲
-        elif fingers == [1, 0, 0, 0, 0]:
-            return self.THUMBS_UP
-        
-        # 其他情况
-        else:
-            return self.UNKNOWN
-    
+
+        if index == 1 and middle == 1 and (ring + pinky) <= 1 and index_middle_distance > 0.09:
+            return self.VICTORY
+
+        # 4. POINT_INDEX
+        # 这是你现在最需要加强的
+        # 标准食指：[0,1,0,0,0]
+        if (
+            thumb == 0 and
+            index == 1 and
+            middle == 0 and
+            ring == 0 and
+            pinky == 0 and
+            index_dist > middle_dist + 0.25 and
+            index_dist > ring_dist + 0.35 and
+            index_dist > pinky_dist + 0.35
+        ):
+            return self.POINT_INDEX
+
+        # 宽松食指：允许拇指偶尔误判为1，但食指必须非常突出
+        if (
+            index == 1 and
+            middle == 0 and
+            ring == 0 and
+            pinky == 0 and
+            index_dist > middle_dist + 0.22 and
+            index_dist > ring_dist + 0.30 and
+            index_dist > pinky_dist + 0.30 and
+            index_middle_distance > 0.20
+        ):
+            return self.POINT_INDEX
+
+        # 几何兜底：即使 fingers_extended 没完全稳定，只要食指异常突出也算
+        if (
+            index_dist > 0.65 and
+            index_dist > middle_dist + 0.30 and
+            index_dist > ring_dist + 0.40 and
+            index_dist > pinky_dist + 0.40
+        ):
+            return self.POINT_INDEX
+
+        # 5. THUMBS_UP
+        # 放在 POINT_INDEX 后面，避免食指再被吃掉
+        if thumb == 1 and middle == 0 and ring == 0 and pinky == 0:
+            # 如果食指没有非常突出，则更像点赞
+            if not (
+                index == 1 and
+                index_dist > middle_dist + 0.22 and
+                index_dist > ring_dist + 0.30 and
+                index_dist > pinky_dist + 0.30
+            ):
+                return self.THUMBS_UP
+
+        # 典型点赞兜底：[1,0,0,0,0]
+        if fingers == [1, 0, 0, 0, 0]:
+            # 食指不够夸张突出时，优先判点赞
+            if not (
+                index_dist > 0.65 and
+                index_dist > middle_dist + 0.25 and
+                index_dist > ring_dist + 0.35 and
+                index_dist > pinky_dist + 0.35
+            ):
+                return self.THUMBS_UP
+
+        return self.UNKNOWN
+
     def get_gesture_id(self, gesture_name):
-        """将手势名称转换为ID（用于UDP通信）"""
         gesture_to_id = {
             self.FIST: 0,
             self.OPEN_PALM: 1,
@@ -71,9 +125,8 @@ class GestureClassifier:
             self.UNKNOWN: 5
         }
         return gesture_to_id.get(gesture_name, 5)
-    
+
     def get_gesture_name(self, gesture_id):
-        """将手势ID转换为名称"""
         id_to_gesture = {
             0: self.FIST,
             1: self.OPEN_PALM,
