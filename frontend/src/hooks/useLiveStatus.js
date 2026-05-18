@@ -1,89 +1,103 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-const defaultState = {
+const fallbackState = {
   gesture: "OPEN_PALM",
   gestureId: 1,
   action: "idle",
-  udpStatus: "Connecting...",
+  udpStatus: "Disconnected",
   timestamp: "--:--:--",
-  source: "demo",
+  source: "fallback",
+  connectionStatus: "waiting",
+  stableCount: 0,
+  requiredStableFrames: 4,
 };
 
+function normalizeStatus(data, fallback = fallbackState) {
+  return {
+    gesture: data?.gesture ?? fallback.gesture,
+    gestureId: data?.gestureId ?? data?.gesture_id ?? fallback.gestureId,
+    action: data?.action ?? fallback.action,
+    udpStatus: data?.udpStatus ?? data?.udp_status ?? "WebSocket Connected",
+    timestamp: data?.timestamp ?? new Date().toLocaleTimeString(),
+    source: data?.source ?? "python",
+    connectionStatus: "connected",
+    stableCount: data?.stableCount ?? data?.stable_count ?? fallback.stableCount ?? 0,
+    requiredStableFrames:
+      data?.requiredStableFrames ?? data?.required_stable_frames ?? fallback.requiredStableFrames ?? 4,
+  };
+}
+
 export default function useLiveStatus() {
-  const [liveState, setLiveState] = useState(defaultState);
+  const [liveState, setLiveState] = useState(fallbackState);
   const [connected, setConnected] = useState(false);
+  const hasConnectedRef = useRef(false);
 
   useEffect(() => {
-    let ws;
-    let pollTimer;
-    let wsConnected = false;
+    let socket;
+    let shouldReconnect = true;
+    let reconnectTimer;
 
-    const updateByHttp = async () => {
-      if (wsConnected) return;
-      try {
-        const resp = await fetch("http://127.0.0.1:8000/api/status");
-        if (!resp.ok) return;
-        const data = await resp.json();
-        setLiveState((prev) => ({
-          ...prev,
-          gesture: data.gesture ?? prev.gesture,
-          gestureId: data.gestureId ?? prev.gestureId,
-          action: data.action ?? prev.action,
-          udpStatus: "Bridge Online",
-          timestamp: data.timestamp ?? prev.timestamp,
-          source: data.source ?? prev.source,
-        }));
-      } catch {
-        // ignore
-      }
+    const markUnavailable = () => {
+      const hasConnected = hasConnectedRef.current;
+      setConnected(false);
+      setLiveState((prev) => ({
+        ...prev,
+        udpStatus: hasConnected ? "Disconnected" : "Waiting for Python Bridge",
+        source: "fallback",
+        connectionStatus: hasConnected ? "disconnected" : "waiting",
+      }));
     };
 
-    try {
-      ws = new WebSocket("ws://127.0.0.1:8000/ws/status");
+    const connect = () => {
+      try {
+        socket = new WebSocket("ws://127.0.0.1:8000/ws/status");
+      } catch {
+        markUnavailable();
+        return;
+      }
 
-      ws.onopen = () => {
-        wsConnected = true;
+      socket.onopen = () => {
+        hasConnectedRef.current = true;
         setConnected(true);
-        setLiveState((prev) => ({ ...prev, udpStatus: "Connected" }));
+        setLiveState((prev) => ({
+          ...prev,
+          udpStatus: "WebSocket Connected",
+          timestamp: new Date().toLocaleTimeString(),
+          source: "python",
+          connectionStatus: "connected",
+        }));
       };
 
-      ws.onmessage = (event) => {
+      socket.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          setLiveState({
-            gesture: data.gesture ?? "UNKNOWN",
-            gestureId: data.gestureId ?? 5,
-            action: data.action ?? "none",
-            udpStatus: "Connected",
-            timestamp: data.timestamp ?? "--:--:--",
-            source: data.source ?? "python",
-          });
-        } catch (error) {
-          console.error("WebSocket parse error:", error);
+          setLiveState((prev) => normalizeStatus(data, prev));
+        } catch {
+          setLiveState((prev) => ({
+            ...prev,
+            udpStatus: "Message Parse Skipped",
+          }));
         }
       };
 
-      ws.onclose = () => {
-        wsConnected = false;
-        setConnected(false);
-        setLiveState((prev) => ({ ...prev, udpStatus: "Disconnected" }));
+      socket.onerror = () => {
+        markUnavailable();
       };
 
-      ws.onerror = () => {
-        wsConnected = false;
-        setConnected(false);
-        setLiveState((prev) => ({ ...prev, udpStatus: "Disconnected" }));
+      socket.onclose = () => {
+        markUnavailable();
+        if (shouldReconnect) {
+          reconnectTimer = window.setTimeout(connect, 3000);
+        }
       };
-    } catch {
-      setConnected(false);
-    }
+    };
 
-    pollTimer = window.setInterval(updateByHttp, 5000);
-    updateByHttp();
+    connect();
 
     return () => {
-      if (ws) ws.close();
-      if (pollTimer) window.clearInterval(pollTimer);
+      shouldReconnect = false;
+      if (reconnectTimer) window.clearTimeout(reconnectTimer);
+      if (socket) socket.close();
     };
   }, []);
 

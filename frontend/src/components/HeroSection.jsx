@@ -1,23 +1,22 @@
-﻿import { techTags } from "../data/projectData";
+import { techTags } from "../data/projectData";
 
 function HeroSection() {
   return (
-    <section className="panel hero-panel">
-      <div className="hero-content">
-        <p className="eyebrow">项目展示控制台</p>
+    <header className="hero-section">
+      <div className="hero-copy">
+        <p className="eyebrow">Defense Console</p>
         <h1>Gesture-Based Manipulation of Virtual Objects</h1>
-        <p className="hero-description">
-          一个基于手势识别的人机交互演示系统，通过 Python 到 Unity 的链路实时控制虚拟机械狗。
-        </p>
-        <div className="tag-row">
-          {techTags.map((tag) => (
-            <span key={tag} className="tech-tag">
-              {tag}
-            </span>
-          ))}
-        </div>
+        <p className="hero-subtitle">基于手势识别的虚拟机械狗交互控制系统</p>
       </div>
-    </section>
+
+      <div className="tag-row" aria-label="Technology tags">
+        {techTags.map((tag) => (
+          <span className="tech-tag" key={tag}>
+            {tag}
+          </span>
+        ))}
+      </div>
+    </header>
   );
 }
 
