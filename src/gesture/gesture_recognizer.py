@@ -84,6 +84,8 @@ class GestureRecognizer:
             "POINT_INDEX": (255, 0, 0),
             "VICTORY": (255, 255, 0),
             "THUMBS_UP": (255, 0, 255),
+            "ROCK": (0, 165, 255),
+            "THREE": (0, 220, 120),
             "UNKNOWN": (128, 128, 128),
         }
 
@@ -93,6 +95,8 @@ class GestureRecognizer:
             "POINT_INDEX": "forward",
             "VICTORY": "backward",
             "THUMBS_UP": "wave",
+            "ROCK": "jump",
+            "THREE": "stand",
             "UNKNOWN": "none",
         }
 
@@ -133,6 +137,8 @@ class GestureRecognizer:
             "POINT_INDEX -> ID 2 -> forward",
             "VICTORY -> ID 3 -> backward",
             "THUMBS_UP -> ID 4 -> wave",
+            "ROCK -> ID 6 -> jump",
+            "THREE -> ID 7 -> stand",
         ]
 
         start_y = 20
@@ -303,6 +309,8 @@ class GestureRecognizer:
         print("POINT_INDEX -> ID 2 -> forward")
         print("VICTORY     -> ID 3 -> backward")
         print("THUMBS_UP   -> ID 4 -> wave")
+        print("ROCK        -> ID 6 -> jump")
+        print("THREE       -> ID 7 -> stand")
         if self.enable_udp:
             print("UDP enabled, sending to 127.0.0.1:5052")
         print(f"Stable frame threshold: {self.required_stable_frames}")

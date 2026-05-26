@@ -27,7 +27,7 @@ function CameraPanel({ currentState }) {
       }
       setIsCameraOn(true);
     } catch {
-      setCameraError("Camera permission denied or unavailable.");
+      setCameraError("摄像头权限被拒绝或设备不可用。");
       setIsCameraOn(false);
     }
   };
@@ -40,11 +40,11 @@ function CameraPanel({ currentState }) {
     <section className="console-panel camera-panel panel-camera-accent">
       <div className="panel-heading">
         <div>
-          <p className="panel-kicker">Gesture Camera Panel</p>
-          <h2>Gesture Camera</h2>
+          <p className="panel-kicker">手势摄像头面板</p>
+          <h2>手势摄像头</h2>
         </div>
         <span className={`status-dot ${isCameraOn ? "online" : "standby"}`}>
-          {isCameraOn ? "Camera On" : "Standby"}
+          {isCameraOn ? "摄像头已开启" : "待机"}
         </span>
       </div>
 
@@ -63,29 +63,29 @@ function CameraPanel({ currentState }) {
         {!isCameraOn && (
           <div className="camera-placeholder">
             <span className="scan-mark" />
-            <strong>Camera Preview Offline</strong>
-            <p>{cameraError || "Start Camera to show local browser preview."}</p>
+            <strong>摄像头预览未开启</strong>
+            <p>{cameraError || "点击启动摄像头，显示浏览器本地预览。"}</p>
           </div>
         )}
       </div>
 
       <div className="camera-actions">
         <button type="button" className="primary-button" onClick={startCamera}>
-          Start Camera
+          启动摄像头
         </button>
         <button type="button" className="secondary-button" onClick={stopCamera}>
-          Stop Camera
+          关闭摄像头
         </button>
       </div>
 
       <div className="status-strip">
         <div>
-          <span>Current Gesture</span>
+          <span>当前手势</span>
           <strong>{currentState.gesture}</strong>
         </div>
         <div>
-          <span>Stable Detection</span>
-          <strong>Ready</strong>
+          <span>稳定识别</span>
+          <strong>就绪</strong>
         </div>
       </div>
     </section>

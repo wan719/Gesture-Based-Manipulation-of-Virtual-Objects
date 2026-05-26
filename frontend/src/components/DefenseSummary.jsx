@@ -4,13 +4,13 @@ function DefenseSummary() {
   return (
     <section className="console-panel defense-summary">
       <div>
-        <p className="panel-kicker">Final System Summary</p>
-        <h2>Final System Summary</h2>
+        <p className="panel-kicker">最终系统总结</p>
+        <h2>最终系统总结</h2>
       </div>
 
       <div className="summary-grid">
         <div>
-          <h3>Completed</h3>
+          <h3>已完成</h3>
           <ul>
             {completedItems.map((item) => (
               <li key={item}>{item}</li>
@@ -19,7 +19,7 @@ function DefenseSummary() {
         </div>
 
         <div>
-          <h3>Limitations</h3>
+          <h3>当前不足</h3>
           <ul>
             {limitationItems.map((item) => (
               <li key={item}>{item}</li>

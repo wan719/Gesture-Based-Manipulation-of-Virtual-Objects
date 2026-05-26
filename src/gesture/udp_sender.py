@@ -33,7 +33,7 @@ class UDPSender:
         
         Args:
             hand_id: 手部ID（0或1）
-            gesture_id: 手势ID（0-5）
+            gesture_id: 手势ID（0-7）
             gesture_name: 手势名称
         """
         # 构建数据包

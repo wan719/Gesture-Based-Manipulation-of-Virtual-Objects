@@ -30,6 +30,8 @@ gesture_to_action = {
     "POINT_INDEX": "forward",
     "VICTORY": "backward",
     "THUMBS_UP": "wave",
+    "ROCK": "jump",
+    "THREE": "stand",
 }
 
 clients = set()

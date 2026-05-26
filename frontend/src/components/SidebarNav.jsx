@@ -6,7 +6,6 @@
     { id: "status", label: "实时状态" },
     { id: "mapping", label: "手势映射" },
     { id: "highlights", label: "项目亮点" },
-    { id: "controls", label: "演示控制" },
   ];
 
   return (
@@ -22,7 +21,7 @@
 
       <div className="side-live-box">
         <p className="side-live-label">当前模式</p>
-        <p className="side-live-value">{useLiveMode ? "实时模式" : "演示模式"}</p>
+        <p className="side-live-value">实时模式</p>
         <p className="side-live-label">桥接状态</p>
         <p className={`side-live-value ${connected ? "ok" : "warn"}`}>
           {connected ? "WebSocket 已连接" : "等待连接"}

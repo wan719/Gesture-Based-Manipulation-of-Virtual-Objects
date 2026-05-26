@@ -19,6 +19,19 @@ public class DogKeyboardTest : MonoBehaviour
             return;
         }
 
+        if (Input.GetKey(KeyCode.A) && !Input.GetKey(KeyCode.D))
+        {
+            dogController.SetTurn("left");
+        }
+        else if (Input.GetKey(KeyCode.D) && !Input.GetKey(KeyCode.A))
+        {
+            dogController.SetTurn("right");
+        }
+        else
+        {
+            dogController.SetTurn("stop");
+        }
+
         if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.I))
         {
             dogController.SetAction("idle");
@@ -38,6 +51,14 @@ public class DogKeyboardTest : MonoBehaviour
         else if (Input.GetKeyDown(KeyCode.Alpha5) || Input.GetKeyDown(KeyCode.W))
         {
             dogController.SetAction("wave");
+        }
+        else if (Input.GetKeyDown(KeyCode.Alpha6) || Input.GetKeyDown(KeyCode.J))
+        {
+            dogController.SetAction("jump");
+        }
+        else if (Input.GetKeyDown(KeyCode.Alpha7) || Input.GetKeyDown(KeyCode.T))
+        {
+            dogController.SetAction("stand");
         }
     }
 }

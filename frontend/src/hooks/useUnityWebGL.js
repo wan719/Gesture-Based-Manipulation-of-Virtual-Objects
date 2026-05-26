@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 export const UNITY_TARGET_OBJECT = "RobotDog";
 export const UNITY_TARGET_METHOD = "SetAction";
+export const UNITY_TARGET_TURN_METHOD = "SetTurn";
 export const UNITY_CANVAS_ID = "unity-canvas";
 
 const UNITY_BUILD_VERSION = "20260518-170326";
@@ -49,7 +50,7 @@ function loadUnityLoader(loaderUrl) {
         console.info("[UnityWebGL] existing Unity loader is loaded");
         resolve();
       } else {
-        reject(new Error("Unity loader script loaded, but createUnityInstance is undefined."));
+        reject(new Error("Unity loader 已加载，但 createUnityInstance 未定义。"));
       }
       return;
     }
@@ -65,12 +66,12 @@ function loadUnityLoader(loaderUrl) {
       if (getCreateUnityInstance()) {
         resolve();
       } else {
-        reject(new Error("loader.js loaded, but createUnityInstance is undefined."));
+        reject(new Error("loader.js 已加载，但 createUnityInstance 未定义。"));
       }
     };
 
     script.onerror = () => {
-      const message = `Unity loader failed to load: ${loaderUrl}`;
+      const message = `Unity loader 加载失败：${loaderUrl}`;
       console.error("[UnityWebGL] Unity load error:", message);
       reject(new Error(message));
     };
@@ -121,7 +122,7 @@ export default function useUnityWebGL(canvasRef) {
 
         const createUnityInstance = getCreateUnityInstance();
         if (!createUnityInstance) {
-          throw new Error("createUnityInstance is undefined after loader.js onload.");
+          throw new Error("loader.js 加载完成后 createUnityInstance 仍未定义。");
         }
 
         const unityConfig = {
@@ -158,10 +159,10 @@ export default function useUnityWebGL(canvasRef) {
         console.info("[UnityWebGL] Unity Ready");
       } catch (err) {
         if (!disposed && bootIdRef.current === bootId) {
-          const message = err?.message || String(err) || "Unknown Unity load error";
+          const message = err?.message || String(err) || "未知 Unity 加载错误";
           console.error("[UnityWebGL] Unity load error:", err);
           setStatus("error");
-          setError(`${message}\n\nIf this persists, press Ctrl+F5. The Unity canvas must keep id="${UNITY_CANVAS_ID}" so Unity can register input events.`);
+          setError(`${message}\n\n如果问题仍然存在，请按 Ctrl+F5 强制刷新。Unity 画布需要保留 id="${UNITY_CANVAS_ID}"，以便 Unity 注册输入事件。`);
         }
       }
     }
@@ -197,12 +198,33 @@ export default function useUnityWebGL(canvasRef) {
     }
   }, []);
 
+  const sendTurn = useCallback((turnCommand) => {
+    if (!turnCommand || !unityInstanceRef.current?.SendMessage) {
+      return false;
+    }
+
+    try {
+      console.info(
+        `[UnityWebGL] SendMessage turn: ${UNITY_TARGET_OBJECT}.${UNITY_TARGET_TURN_METHOD}(${turnCommand})`
+      );
+      unityInstanceRef.current.SendMessage(UNITY_TARGET_OBJECT, UNITY_TARGET_TURN_METHOD, turnCommand);
+      return true;
+    } catch (err) {
+      console.error(
+        `[UnityWebGL] Unity SendMessage failed: ${UNITY_TARGET_OBJECT}.${UNITY_TARGET_TURN_METHOD}(${turnCommand})`,
+        err
+      );
+      return false;
+    }
+  }, []);
+
   return {
     status,
     progress,
     error,
     bannerMessage,
     sendAction,
+    sendTurn,
     unityInstance: unityInstanceRef.current,
   };
 }

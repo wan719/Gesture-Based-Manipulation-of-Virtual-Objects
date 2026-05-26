@@ -4,7 +4,7 @@ const fallbackState = {
   gesture: "OPEN_PALM",
   gestureId: 1,
   action: "idle",
-  udpStatus: "Disconnected",
+  udpStatus: "连接已断开",
   timestamp: "--:--:--",
   source: "fallback",
   connectionStatus: "waiting",
@@ -17,7 +17,7 @@ function normalizeStatus(data, fallback = fallbackState) {
     gesture: data?.gesture ?? fallback.gesture,
     gestureId: data?.gestureId ?? data?.gesture_id ?? fallback.gestureId,
     action: data?.action ?? fallback.action,
-    udpStatus: data?.udpStatus ?? data?.udp_status ?? "WebSocket Connected",
+    udpStatus: data?.udpStatus ?? data?.udp_status ?? "WebSocket 已连接",
     timestamp: data?.timestamp ?? new Date().toLocaleTimeString(),
     source: data?.source ?? "python",
     connectionStatus: "connected",
@@ -42,7 +42,7 @@ export default function useLiveStatus() {
       setConnected(false);
       setLiveState((prev) => ({
         ...prev,
-        udpStatus: hasConnected ? "Disconnected" : "Waiting for Python Bridge",
+        udpStatus: hasConnected ? "连接已断开" : "等待 Python Bridge",
         source: "fallback",
         connectionStatus: hasConnected ? "disconnected" : "waiting",
       }));
@@ -61,7 +61,7 @@ export default function useLiveStatus() {
         setConnected(true);
         setLiveState((prev) => ({
           ...prev,
-          udpStatus: "WebSocket Connected",
+          udpStatus: "WebSocket 已连接",
           timestamp: new Date().toLocaleTimeString(),
           source: "python",
           connectionStatus: "connected",
@@ -75,7 +75,7 @@ export default function useLiveStatus() {
         } catch {
           setLiveState((prev) => ({
             ...prev,
-            udpStatus: "Message Parse Skipped",
+            udpStatus: "消息解析失败",
           }));
         }
       };

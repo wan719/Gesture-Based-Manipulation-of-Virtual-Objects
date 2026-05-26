@@ -33,6 +33,8 @@ GESTURE_TO_ACTION = {
     "POINT_INDEX": "forward",
     "VICTORY": "backward",
     "THUMBS_UP": "wave",
+    "ROCK": "jump",
+    "THREE": "stand",
     "UNKNOWN": "none",
 }
 
@@ -220,6 +222,7 @@ class GestureDashboardRuntime:
             f"Gesture ID: {state.get('gestureId', gesture_id)}",
             f"Dog Action: {state.get('action', action)}",
             f"Stable Count: {stable_count}/{self.required_stable_frames}",
+            "New: ROCK -> jump | THREE -> stand",
         ]
         y = 28
         for index, line in enumerate(lines):

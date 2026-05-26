@@ -14,8 +14,8 @@ function RobotDogPlaceholder() {
         <span className="robot-leg leg-d" />
       </div>
       <div className="unity-overlay">
-        <strong>Unity Scene Preview</strong>
-        <span>Robot dog runtime window placeholder</span>
+        <strong>Unity 场景预览</strong>
+        <span>机械狗运行窗口占位展示</span>
       </div>
     </div>
   );
@@ -24,18 +24,18 @@ function RobotDogPlaceholder() {
 function RobotDogPanel({ currentState }) {
   const [mediaMode, setMediaMode] = useState("video");
   const action = currentState.action || "idle";
-  const actionText = action.toUpperCase();
+  const actionText = actionButtons.find((item) => item.action === action)?.label ?? action;
   const description =
-    actionDescriptions[action] ?? "Robot dog is waiting for gesture command.";
+    actionDescriptions[action] ?? "机械狗正在等待稳定手势指令。";
 
   return (
     <section className="console-panel robot-panel panel-robot-accent">
       <div className="panel-heading">
         <div>
-          <p className="panel-kicker">Virtual Robot Dog Panel</p>
-          <h2>Virtual Robot Dog</h2>
+          <p className="panel-kicker">虚拟机械狗面板</p>
+          <h2>虚拟机械狗</h2>
         </div>
-        <span className="status-dot online">Unity Preview</span>
+        <span className="status-dot online">Unity 预览</span>
       </div>
 
       <div className="robot-preview">
@@ -57,7 +57,7 @@ function RobotDogPanel({ currentState }) {
           <img
             className="robot-media"
             src="/robotdog-preview.png"
-            alt="Unity robot dog preview"
+            alt="Unity 机械狗预览"
             onError={() => setMediaMode("placeholder")}
           />
         )}
@@ -66,12 +66,12 @@ function RobotDogPanel({ currentState }) {
       </div>
 
       <div className="robot-action-readout">
-        <span>Action</span>
+        <span>当前动作</span>
         <strong>{actionText}</strong>
         <p>{description}</p>
       </div>
 
-      <div className="action-capsules" aria-label="Robot dog action tags">
+      <div className="action-capsules" aria-label="机械狗动作标签">
         {actionButtons.map((item) => (
           <span
             className={`action-capsule${item.action === action ? " active" : ""}`}

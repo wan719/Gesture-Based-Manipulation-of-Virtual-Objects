@@ -5,6 +5,8 @@ class GestureClassifier:
         self.POINT_INDEX = "POINT_INDEX"
         self.VICTORY = "VICTORY"
         self.THUMBS_UP = "THUMBS_UP"
+        self.ROCK = "ROCK"
+        self.THREE = "THREE"
         self.UNKNOWN = "UNKNOWN"
 
         self.debug = False
@@ -31,7 +33,28 @@ class GestureClassifier:
                 f"dist(index/middle/ring/pinky)=({index_dist:.3f}/{middle_dist:.3f}/{ring_dist:.3f}/{pinky_dist:.3f})"
             )
 
-        # 1. OPEN_PALM
+        # 1. ROCK: thumb/index/pinky extended, middle/ring folded.
+        if (
+            index == 1 and
+            pinky == 1 and
+            middle == 0 and
+            ring == 0 and
+            extended_count >= 2 and
+            (thumb == 1 or palm_span > 0.32)
+        ):
+            return self.ROCK
+
+        # 2. THREE: index/middle/ring extended, pinky folded; thumb is allowed.
+        if (
+            index == 1 and
+            middle == 1 and
+            ring == 1 and
+            pinky == 0 and
+            extended_count >= 3
+        ):
+            return self.THREE
+
+        # 3. OPEN_PALM
         if extended_count >= 4 and palm_span > 0.35:
             return self.OPEN_PALM
 
@@ -122,7 +145,9 @@ class GestureClassifier:
             self.POINT_INDEX: 2,
             self.VICTORY: 3,
             self.THUMBS_UP: 4,
-            self.UNKNOWN: 5
+            self.UNKNOWN: 5,
+            self.ROCK: 6,
+            self.THREE: 7
         }
         return gesture_to_id.get(gesture_name, 5)
 
@@ -133,6 +158,8 @@ class GestureClassifier:
             2: self.POINT_INDEX,
             3: self.VICTORY,
             4: self.THUMBS_UP,
-            5: self.UNKNOWN
+            5: self.UNKNOWN,
+            6: self.ROCK,
+            7: self.THREE
         }
         return id_to_gesture.get(gesture_id, self.UNKNOWN)

@@ -1,25 +1,37 @@
-import { gestureMappings } from "../data/projectData";
+import { actionButtons, gestureMappings } from "../data/projectData";
 import MappingTable from "./MappingTable";
 
-function LiveStatusPanel({ connected, currentState, mode, onModeChange }) {
+function formatDataSource(source) {
+  const sourceMap = {
+    fallback: "备用数据",
+    python: "Python 实时识别",
+    "Python WebSocket": "Python WebSocket",
+    "等待 Python Bridge": "等待 Python Bridge",
+    "前端演示": "前端演示",
+  };
+
+  return sourceMap[source] ?? source ?? "未知";
+}
+
+function LiveStatusPanel({ connected, currentState }) {
+  const actionLabel =
+    actionButtons.find((item) => item.action === currentState.action)?.label ?? currentState.action;
   const connectionLabel =
-    mode === "demo"
-      ? "Demo Mode"
-      : connected
-        ? "WebSocket Connected"
-        : currentState.udpStatus === "Disconnected"
-          ? "Disconnected"
-          : "Waiting for Python Bridge";
+    connected
+      ? "WebSocket 已连接"
+      : currentState.connectionStatus === "disconnected"
+        ? "连接已断开"
+        : "等待 Python Bridge";
 
   const statusRows = [
-    ["Connection Status", connectionLabel],
-    ["Current Gesture", currentState.gesture],
-    ["Gesture ID", currentState.gestureId],
-    ["Dog Action", currentState.action],
-    ["Last Update", currentState.timestamp],
-    ["Data Source", currentState.source],
+    ["连接状态", connectionLabel],
+    ["当前手势", currentState.gesture],
+    ["手势 ID", currentState.gestureId],
+    ["机械狗动作", actionLabel],
+    ["最后更新", currentState.timestamp],
+    ["数据来源", formatDataSource(currentState.source)],
     [
-      "Stable Count",
+      "稳定帧数",
       `${currentState.stableCount ?? 0} / ${currentState.requiredStableFrames ?? 4}`,
     ],
   ];
@@ -28,29 +40,17 @@ function LiveStatusPanel({ connected, currentState, mode, onModeChange }) {
     <section className="console-panel live-status-panel panel-status-accent">
       <div className="panel-heading">
         <div>
-          <p className="panel-kicker">Live Status Panel</p>
-          <h2>Live Status</h2>
+          <p className="panel-kicker">实时状态面板</p>
+          <h2>实时状态</h2>
         </div>
         <span className={`status-dot ${connected ? "online" : "standby"}`}>
-          {connected ? "Live" : "Fallback"}
+          {connected ? "实时" : "备用"}
         </span>
       </div>
 
-      <div className="mode-toggle" role="group" aria-label="Runtime mode">
-        <button
-          type="button"
-          className={mode === "live" ? "active" : ""}
-          onClick={() => onModeChange("live")}
-        >
-          Live Mode
-        </button>
-        <button
-          type="button"
-          className={mode === "demo" ? "active" : ""}
-          onClick={() => onModeChange("demo")}
-        >
-          Demo Mode
-        </button>
+      <div className="live-mode-badge" aria-label="当前运行模式">
+        <span>运行模式</span>
+        <strong>实时模式</strong>
       </div>
 
       <div className="status-list dashboard-status-grid">
@@ -63,15 +63,13 @@ function LiveStatusPanel({ connected, currentState, mode, onModeChange }) {
       </div>
 
       <div className="bridge-hint">
-        {mode === "demo"
-          ? "Demo Mode is using local front-end buttons."
-          : connected
-            ? "WebSocket Connected. Python Bridge is streaming gesture status."
-            : "Waiting for Python Bridge. The page remains available."}
+        {connected
+          ? "WebSocket 已连接，Python Bridge 正在推送手势状态。"
+          : "等待 Python Bridge，请先启动 Python 实时识别服务。"}
       </div>
 
       <div className="mapping-block">
-        <h3>Gesture Mapping</h3>
+        <h3>手势映射</h3>
         <MappingTable mappings={gestureMappings} />
       </div>
     </section>

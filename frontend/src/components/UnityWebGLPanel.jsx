@@ -5,15 +5,16 @@ import useUnityWebGL, {
   UNITY_CANVAS_ID,
   UNITY_TARGET_METHOD,
   UNITY_TARGET_OBJECT,
+  UNITY_TARGET_TURN_METHOD,
 } from "../hooks/useUnityWebGL";
 
 function UnityBuildPlaceholder({ status, progress, error }) {
   const isLoading = status === "loading";
   const title = isLoading
-    ? `Loading Unity WebGL... ${progress}%`
-    : "Unity WebGL Load Error";
+    ? `正在加载 Unity WebGL... ${progress}%`
+    : "Unity WebGL 加载失败";
   const message =
-    error || "Check loader.js, data, framework.js, wasm, and browser console.";
+    error || "请检查 loader.js、data、framework.js、wasm 文件和浏览器控制台。";
 
   return (
     <div className="unity-placeholder unity-webgl-placeholder">
@@ -36,33 +37,45 @@ function UnityBuildPlaceholder({ status, progress, error }) {
 
 function UnityWebGLPanel({ currentState }) {
   const canvasRef = useRef(null);
-  const { status, progress, error, bannerMessage, sendAction } = useUnityWebGL(canvasRef);
+  const { status, progress, error, bannerMessage, sendAction, sendTurn } = useUnityWebGL(canvasRef);
   const action = currentState.action || "idle";
-  const actionText = action.toUpperCase();
+  const actionLabel = actionButtons.find((item) => item.action === action)?.label ?? action.toUpperCase();
   const description =
-    actionDescriptions[action] ?? "Robot dog is waiting for a stable gesture command.";
+    actionDescriptions[action] ?? "等待稳定手势指令。";
 
   useEffect(() => {
     if (status === "ready") {
       sendAction(action);
+      sendTurn(window.__gestureDashboardTurnCommand || "stop");
     }
-  }, [action, sendAction, status]);
+  }, [action, currentState.commandSerial, sendAction, sendTurn, status]);
+
+  useEffect(() => {
+    const handleTurnCommand = (event) => {
+      if (status === "ready") {
+        sendTurn(event.detail || "stop");
+      }
+    };
+
+    window.addEventListener("gesture-dashboard-turn", handleTurnCommand);
+    return () => window.removeEventListener("gesture-dashboard-turn", handleTurnCommand);
+  }, [sendTurn, status]);
 
   return (
     <section className="console-panel robot-panel panel-robot-accent">
       <div className="panel-heading">
         <div>
-          <p className="panel-kicker">Unity WebGL Panel</p>
-          <h2>Unity WebGL Virtual Robot Dog</h2>
+          <p className="panel-kicker">Unity WebGL 面板</p>
+          <h2>Unity WebGL 虚拟机械狗</h2>
         </div>
         <span className={`status-dot ${status === "ready" ? "online" : "standby"}`}>
-          {status === "ready" ? "Unity Ready" : status === "loading" ? `Loading ${progress}%` : "Load Error"}
+          {status === "ready" ? "Unity 就绪" : status === "loading" ? `加载中 ${progress}%` : "加载失败"}
         </span>
       </div>
 
       <div className="robot-preview unity-webgl-preview">
         <div className="robot-hud-label hud-top-left">UNITY WEBGL</div>
-        <div className="robot-hud-label hud-top-right">{actionText}</div>
+        <div className="robot-hud-label hud-top-right">{actionLabel}</div>
         <canvas
           id={UNITY_CANVAS_ID}
           ref={canvasRef}
@@ -75,17 +88,17 @@ function UnityWebGLPanel({ currentState }) {
       </div>
 
       <div className="robot-action-readout">
-        <span>Action</span>
-        <strong>{actionText}</strong>
+        <span>当前动作</span>
+        <strong>{actionLabel}</strong>
         <p>{description}</p>
       </div>
 
       <div className="unity-path-note">
-        Target: {UNITY_TARGET_OBJECT}.{UNITY_TARGET_METHOD}(action) | Loader: {UNITY_BUILD_CONFIG.loaderUrl}
+        Unity 调用目标：{UNITY_TARGET_OBJECT}.{UNITY_TARGET_METHOD}(动作) / {UNITY_TARGET_TURN_METHOD}(转向) | 加载器：{UNITY_BUILD_CONFIG.loaderUrl}
         {bannerMessage ? ` | Unity: ${bannerMessage}` : ""}
       </div>
 
-      <div className="action-capsules" aria-label="Robot dog action tags">
+      <div className="action-capsules" aria-label="机械狗动作标签">
         {actionButtons.map((item) => (
           <span
             className={`action-capsule${item.action === action ? " active" : ""}`}

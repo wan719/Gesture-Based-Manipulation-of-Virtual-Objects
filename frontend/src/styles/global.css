@@ -117,7 +117,6 @@ h1 {
 }
 
 .tag-row,
-.demo-actions,
 .camera-actions,
 .action-capsules {
   display: flex;
@@ -404,9 +403,7 @@ h1 {
 }
 
 .primary-button,
-.secondary-button,
-.action-button,
-.mode-toggle button {
+.secondary-button {
   min-height: 40px;
   border: 1px solid rgba(53, 216, 255, 0.35);
   border-radius: var(--radius);
@@ -416,7 +413,6 @@ h1 {
   transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
 }
 
-.demo-actions,
 .summary-grid {
   position: relative;
   z-index: 1;
@@ -435,9 +431,7 @@ h1 {
 }
 
 .secondary-button:hover,
-.primary-button:hover,
-.action-button:hover,
-.mode-toggle button:hover {
+.primary-button:hover {
   border-color: var(--line-strong);
   transform: translateY(-1px);
 }
@@ -693,32 +687,26 @@ h1 {
   font-weight: 800;
 }
 
-.mode-toggle {
+.live-mode-badge {
   position: relative;
   z-index: 1;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 14px;
-  padding: 5px;
+  padding: 11px 14px;
   border: 1px solid rgba(122, 167, 255, 0.24);
   border-radius: 999px;
   background: rgba(4, 14, 24, 0.82);
 }
 
-.mode-toggle button {
-  border-radius: 999px;
-  padding: 9px 8px;
-  border-color: transparent;
-  background: transparent;
+.live-mode-badge span {
   color: #aebed3;
+  font-size: 0.88rem;
 }
 
-.mode-toggle button.active,
-.action-button.active {
-  border-color: transparent;
-  background: linear-gradient(135deg, var(--cyan), var(--green));
-  color: #031018;
+.live-mode-badge strong {
+  color: var(--green);
   font-weight: 800;
 }
 
@@ -812,21 +800,8 @@ h1 {
   font-weight: 700;
 }
 
-.demo-control-panel,
 .defense-summary {
   margin-top: 18px;
-}
-
-.demo-control-panel {
-  display: grid;
-  grid-template-columns: minmax(260px, 0.9fr) minmax(0, 1.6fr);
-  gap: 18px;
-  align-items: center;
-}
-
-.action-button {
-  min-width: 120px;
-  padding: 10px 16px;
 }
 
 .summary-grid {
@@ -870,7 +845,6 @@ h1 {
   }
 
   .hero-section,
-  .demo-control-panel,
   .summary-grid {
     grid-template-columns: 1fr;
   }
@@ -879,12 +853,10 @@ h1 {
     grid-template-columns: 1fr;
   }
 
-  .status-strip,
-  .mode-toggle {
+  .status-strip {
     grid-template-columns: 1fr;
   }
 
-  .action-button,
   .primary-button,
   .secondary-button {
     width: 100%;
